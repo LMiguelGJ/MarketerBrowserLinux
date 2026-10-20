@@ -72,3 +72,6 @@ desktop.ini
 .~lock.*
 .vscode/
 .idea/
+
+# Local ODD task tracking (specs, log); mirrored in memory, not source.
+/odd/
