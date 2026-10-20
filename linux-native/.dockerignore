@@ -1,0 +1,17 @@
+# The image needs only Dockerfile and docker/.
+tests
+docs
+scripts
+README.md
+compose.yaml
+compose.override.y*ml
+node_modules
+package.json
+package-lock.json
+.git
+.gitignore
+.dockerignore
+.env
+.env.*
+*.log
+*.png

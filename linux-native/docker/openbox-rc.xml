@@ -70,5 +70,18 @@
       <skip_taskbar>yes</skip_taskbar>
       <skip_pager>yes</skip_pager>
     </application>
+
+    <!--
+      Every other window of the application (side panels and message boxes).
+      The first matching rule wins, so this one only applies to what the rule above
+      did not take. Message boxes are opened as transient windows of an invisible
+      helper window; the window manager then stacks them at the very bottom, under
+      the main window, where they cannot be seen or answered. The upper layer keeps
+      them visible. Browser windows of the profiles belong to another program and
+      are not affected.
+    -->
+    <application name="marketerbrowserlite.exe">
+      <layer>above</layer>
+    </application>
   </applications>
 </openbox_config>

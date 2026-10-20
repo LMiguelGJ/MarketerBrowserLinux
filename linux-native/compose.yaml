@@ -1,0 +1,29 @@
+services:
+  marketerbrowser:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: marketerbrowser-linux:latest
+    restart: unless-stopped
+    ports:
+      # Only the browser-facing port. The VNC port (5900) stays inside the container.
+      - "127.0.0.1:6080:6080"
+    environment:
+      # Required. Generate one with: openssl rand -hex 24
+      MBL_ACCESS_TOKEN: ${MBL_ACCESS_TOKEN:?MBL_ACCESS_TOKEN is required}
+      SCREEN: ${SCREEN:-1600x900x24}
+    volumes:
+      # Application data and the components the application downloads.
+      - mbl-data:/data
+    # Chromium (the application's browser) needs more shared memory than the default 64 MB.
+    shm_size: "1gb"
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  mbl-data:
