@@ -17,12 +17,15 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG DEBIAN_FRONTEND=noninteractive
 ARG WINETRICKS_VERSION=20260125
 ARG WINETRICKS_SHA256=431f82fc74000e6c864409f1d8fb495d696c03928808e3e8acffc45179312a7b
+# Where to download the application from. The vendor URL below now serves version
+# 1.0.3.8, which does NOT work here: it depends on the WebView2 (Edge) runtime and
+# fails at start. The build therefore checks the executable (see APP_EXE_SHA256) and
+# stops with an explanation. Point this at a copy of the known-good 1.0.0.1 zip that
+# you host yourself, e.g. --build-arg APP_ZIP_URL=https://your-host/MarketerBrowserLite.zip
 ARG APP_ZIP_URL=https://www.marketerbrowser.com/Doc/MarketerBrowserLite.zip
-# The vendor replaces the file at this URL whenever it releases a new version (it did,
-# between two builds on the same day), so pinning a hash makes builds fail without any
-# attack involved. The default accepts the current file and prints its SHA-256 in the
-# build log. To pin a known build, pass its hash, e.g.
-#   --build-arg APP_ZIP_SHA256=cfe86ad3c1dc0146748b9b6e740f1b61940aeac3be4f540c0ac6b792011d3fb3
+# SHA-256 of MarketerBrowserLite.exe version 1.0.0.1, the build validated under Wine.
+# Pass "any" to skip the check (the result is not expected to start).
+ARG APP_EXE_SHA256=0c8d2c489aa22776f8e3ac5ab8cd8e70ef39ad22f4bce4f343e322a219d7994f
 ARG APP_ZIP_SHA256=any
 
 # hadolint ignore=DL3008
@@ -79,6 +82,17 @@ RUN curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors -o /tmp/app.zip "${A
        fi \
     && unzip -q /tmp/app.zip -d /opt/mbl-app \
     && test -f /opt/mbl-app/MarketerBrowserLite.exe \
+    && if [ "${APP_EXE_SHA256}" != "any" ]; then \
+         actual="$(sha256sum /opt/mbl-app/MarketerBrowserLite.exe | cut -d' ' -f1)"; \
+         if [ "$actual" != "${APP_EXE_SHA256}" ]; then \
+           echo "ERROR: the downloaded MarketerBrowserLite.exe is not version 1.0.0.1." >&2; \
+           echo "  expected ${APP_EXE_SHA256}" >&2; \
+           echo "  got      $actual" >&2; \
+           echo "The vendor now serves a build that needs WebView2 and does not run under Wine." >&2; \
+           echo "Host the 1.0.0.1 zip yourself and pass --build-arg APP_ZIP_URL=<url>." >&2; \
+           exit 1; \
+         fi; \
+       fi \
     && mv /opt/mbl-app/Data /opt/mbl-dist/Data \
     && sha256sum /tmp/app.zip /opt/mbl-app/MarketerBrowserLite.exe | tee /opt/mbl-app/.build-sha256 \
     && rm -f /tmp/app.zip
