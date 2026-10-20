@@ -6,7 +6,8 @@ services:
     image: marketerbrowser-linux:latest
     restart: unless-stopped
     ports:
-      # Expose the viewer; keep VNC private to the container.
+      # Only the browser-facing port. The VNC port (5900) stays inside
+      # the container.
       - "127.0.0.1:6080:6080"
     environment:
       # Required. Generate one with: openssl rand -hex 24
@@ -15,15 +16,8 @@ services:
     volumes:
       # Application data and the components the application downloads.
       - mbl-data:/data
-      # Private vendor archive: copy it to the Docker host and mount read-only.
-      - type: bind
-        source: >-
-          ${MBL_VENDOR_ZIP_HOST_PATH:?MBL_VENDOR_ZIP_HOST_PATH is required}
-        target: /run/mbl-private/MarketerBrowserLite-1.0.0.1.zip
-        read_only: true
-        bind:
-          create_host_path: false
-    # Chromium needs more shared memory than Docker's 64 MB default.
+    # Chromium (the application's browser) needs more shared memory than
+    # the default 64 MB.
     shm_size: "1gb"
     security_opt:
       - no-new-privileges:true

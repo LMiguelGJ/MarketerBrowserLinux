@@ -1,6 +1,7 @@
 # ---------------------------------------------------------------------------
 # Original Windows distribution: proprietary binaries plus user data
-# (profiles, cookies, backups, logs). Never belongs in this repository.
+# (profiles, cookies, backups, logs). User data never belongs in this
+# repository; the single application archive is a deliberate exception below.
 # ---------------------------------------------------------------------------
 /win-native/
 
@@ -9,6 +10,11 @@
 *.dll
 *.pdb
 *.zip
+
+# Deliberate exception: the pinned application archive. Dokploy builds from the
+# Git checkout, so the archive has to travel in the repository for the image to
+# contain the application. Nothing else may match these patterns.
+!/linux-native/MarketerBrowserLite-1.0.0.1.zip
 
 # ---------------------------------------------------------------------------
 # Local agent tooling. Only the migration plan is kept.

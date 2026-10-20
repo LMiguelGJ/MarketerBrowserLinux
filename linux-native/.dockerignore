@@ -15,4 +15,8 @@ package-lock.json
 .env.*
 *.log
 *.png
+# The pinned application archive stays in the build context: a private stage
+# verifies and extracts it, and the final image receives only the extracted
+# program. Every other archive is still excluded.
 **/*.zip
+!MarketerBrowserLite-1.0.0.1.zip

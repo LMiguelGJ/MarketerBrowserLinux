@@ -1,11 +1,11 @@
 # Plan: la app original corriendo en Linux y mostrada en una pestaña
 
-> Creado con `plan-mode-trae`. Estado: **aprobado; en implementación**. El ZIP propietario se entrega mediante un bind mount de solo lectura en runtime y nunca se publica en GitHub.
+> Creado con `plan-mode-trae`. Estado: **aprobado; en implementación**. El ZIP propietario viaja en el repositorio: Dokploy construye desde un checkout de Git, así que el archivo tiene que estar en el repo para que la imagen contenga la app. Un stage privado de build verifica ambos hashes y la imagen final recibe solo lo extraído.
 > Reemplaza la dirección del plan anterior (`migracion-linux-nativa.md`, reimplementación), que no cumplió el pedido.
 
 ## Summary
 
-Ejecutar el **`MarketerBrowserLite.exe` original** bajo Wine en una pantalla virtual de Linux y servir esa pantalla a una pestaña web (noVNC), de modo que el navegador muestre **solo la ventana de la app, tal cual**, con ratón y teclado. Todo empaquetado en Docker y desplegable en Dokploy. El ZIP propietario se monta en runtime desde el host, se valida y se extrae al volumen persistente `/data`; no se incluye en GitHub ni en las capas de build de la imagen.
+Ejecutar el **`MarketerBrowserLite.exe` original** bajo Wine en una pantalla virtual de Linux y servir esa pantalla a una pestaña web (noVNC), de modo que el navegador muestre **solo la ventana de la app, tal cual**, con ratón y teclado. Todo empaquetado en Docker y desplegable en Dokploy. El ZIP propietario viaja en el checkout de Git porque Dokploy construye desde ahí; un stage privado del build verifica los hashes del ZIP y del EXE extraído, y la imagen final recibe solo el programa extraído, nunca el archivo.
 
 ## Pedido original (L1, textual)
 
@@ -68,8 +68,8 @@ websockify :6080  ──►  x11vnc :5900 (solo localhost)  ──►  Xvfb :99
 ### T4 — Imagen Docker
 
 - **Files**: `linux-native/Dockerfile`, `linux-native/docker/entrypoint.sh`, `linux-native/.dockerignore`, `linux-native/compose.yaml`.
-- **How**: `debian:trixie-slim` + `dpkg --add-architecture i386` + `wine wine32 wine64 xvfb x11vnc novnc websockify openbox cabextract`; usuario no-root (UID 1001); `winetricks` fijado a `20260125`; prefijo y `.NET` creados **durante el build**. En runtime el usuario monta el ZIP conocido como archivo de solo lectura en `/run/mbl-private/MarketerBrowserLite-1.0.0.1.zip`; el entrypoint valida el hash del ZIP y del EXE antes de extraerlo atómicamente a `/data/app`. Sin el montaje o ante hash incorrecto, el contenedor falla antes de iniciar la app. El ZIP no se requiere en el build context ni queda en la imagen.
-- **Datos**: el ejecutable y sus directorios viven en el volumen persistente `/data`; `Data`, `Backups`, `BackupTemp` y `Logs` se enlazan a ubicaciones persistentes allí.
+- **How**: `debian:trixie-slim` + `dpkg --add-architecture i386` + `wine wine32 wine64 xvfb x11vnc novnc websockify openbox cabextract`; usuario no-root (UID 1001); `winetricks` fijado a `20260125`; prefijo y `.NET` creados **durante el build**. El ZIP fijado viaja en el contexto de build; un stage privado `app-archive` verifica el SHA-256 del ZIP y el del `MarketerBrowserLite.exe` extraído, y extrae a `/opt/mbl-app` más `/opt/mbl-dist/Data`. La imagen final copia solo lo extraído: el archivo no queda en las capas. Un hash incorrecto falla el build antes de publicar la imagen.
+- **Datos**: `Data`, `Backups`, `BackupTemp` y `Logs` se enlazan a ubicaciones persistentes en el volumen `/data`. Ese volumen debe ser **nombrado**: Dokploy solo reenvía `type=volume` a las Applications (los bind mounts se descartan) y un volumen anónimo se pierde al recrear el contenedor.
 - **Entrypoint**: valida `MBL_ACCESS_TOKEN`; arranca Xvfb, openbox, x11vnc, websockify y la app; si cualquiera cae, el contenedor sale con error para que Docker lo reinicie.
 - **Advertencia**: `Update.exe` puede intentar actualizar la app; en el contenedor los cambios son efímeros.
 
@@ -89,7 +89,7 @@ websockify :6080  ──►  x11vnc :5900 (solo localhost)  ──►  Xvfb :99
 - **S1** Se ejecuta el `.exe` **original** bajo Wine, no una reimplementación; la ventana principal se renderiza.
 - **S2** Una pestaña muestra **solo** esa ventana (sin escritorio, sin barra de tareas), ocupa todo el viewport y acepta ratón y teclado.
 - **S3** La captura coincide con la tuya: título `MarketerBrowserLite v1.0.0.1`, barra lateral y botones de la barra superior. *Revisión visual mía; no es una comparación de píxeles.*
-- **S4** La imagen se construye y arranca; **ningún binario de Windows** ni dato tuyo está en git.
+- **S4** La imagen se construye y arranca; ningún binario de Windows suelto ni dato del usuario está en git (el ZIP fijado es la excepción deliberada, verificado por hash en build).
 - **S5** Los datos persisten en `/data` tras reiniciar.
 - **S6** Sin `MBL_ACCESS_TOKEN` el contenedor no arranca; sin token válido el WebSocket se rechaza; el puerto VNC **no** se publica.
 - **S7** La guía de Dokploy es ejecutable tal cual.
@@ -101,7 +101,7 @@ Decisiones por defecto, todas editables por vos antes de aprobar:
 1. **ODD en modo yolo.** Al ejecutar creo `odd/tasks/app-wine-novnc.md` (specs textuales, tareas, log) con su espejo en Engram, el `todo` visible, **un commit por tarea** en la rama y verificación al cerrar cada una. Avanzo sin pedirte permiso por tarea.
 2. **Las únicas pausas son estas puertas:** **G1** la app no abre bajo Wine; **G2** Chrome no funciona bajo Wine; **G3** cualquier necesidad de alterar la protección o la licencia; **G4** escribir fuera de `~/work`, del repo o tocar tu `win-native/Data` real; **G5** merge a `main` o despliegue.
 3. **No se elude DNGuard HVM ni ninguna comprobación de licencia.** Si la app se niega a correr bajo Wine, se informa y se decide. Una alternativa posible, que **no ejecuto sin tu decisión**, sería correr un Windows real dentro de una VM/KVM, mucho más pesada.
-4. **El ZIP y ejecutable propietario nunca entran al repositorio público ni a la imagen.** Se montan desde un path del host en solo lectura durante runtime y se extraen a `/data/app` tras verificar ambos hashes.
+4. **El ZIP fijado sí entra al repositorio** (decisión del usuario, repositorio público): sin el archivo en el checkout, Dokploy no puede construir una imagen con la app. El stage privado verifica los hashes en build, la imagen final no guarda el archivo, y `win-native/` con los datos del usuario sigue excluido. El build nuevo que sirve hoy el vendor (44 MB) no arranca bajo Wine, así que el archivo fijado es la vía known-good.
 5. **Versión**: lo que se descarga puede ser más nuevo que tu `.exe`. Registro ambos SHA-256. Si hay diferencia visible, te la muestro.
 6. **Directorio**: el contenido nuevo vive en `linux-native/` para no romper el Build Path que te indiqué; la reimplementación queda en la etiqueta.
 7. **La documentación REA publicada** (`evidence-ledger.md` y `feature-matrix.md`) desaparece de `HEAD` pero **sigue en el historial público**; quitarla del historial exigiría reescribirlo y **no está en este plan**.
@@ -112,9 +112,9 @@ Decisiones por defecto, todas editables por vos antes de aprobar:
 
 - [ ] T0: captura real de la ventana principal bajo Wine y `wmctrl -l` mostrando la ventana.
 - [ ] T3: un perfil de prueba abre y renderiza una página (o G2 documentado).
-- [ ] T4: `docker build` termina con código 0 sin el ZIP en el contexto; el contenedor sin `MBL_ACCESS_TOKEN` **falla**; con token pero sin el montaje del ZIP falla sin modificar datos; con el montaje correcto valida ambos hashes, extrae a `/data/app` y arranca.
+- [ ] T4: `docker build` termina con código 0 con el ZIP en el contexto; el stage privado rechaza un hash incorrecto; el contenedor sin `MBL_ACCESS_TOKEN` **falla**; el hash del EXE instalado coincide con el fijado; los enlaces de `Data`/`Backups`/`Logs` apuntan al volumen; HTTP 200 y health `healthy`.
 - [ ] T5: WebSocket sin token rechazado y con token aceptado; captura del canvas desde Playwright; clic en "Create Profile" produce respuesta de la app; reinicio conserva datos.
-- [ ] `git ls-files` sin `*.exe`, `*.dll`, `*.zip` ni nada de `win-native/`.
+- [ ] `git ls-files` sin `*.exe`, `*.dll` ni nada de `win-native/`; el único ZIP versionado es el fijado.
 - [ ] Informe del verificador independiente sin defectos reales abiertos.
 - **Mutación** en lo crítico: quitar el chequeo de token y comprobar que la prueba de rechazo **falla**.
 
