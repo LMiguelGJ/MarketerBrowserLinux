@@ -48,6 +48,13 @@ map_state() {
   xwininfo -id "$1" 2>/dev/null | awk -F': ' '/Map State/ {print $2; exit}'
 }
 
+# A window the operator minimised is iconified: it is still there, and the
+# operator asked for it to leave the screen. It must not be brought back
+# behind their back.
+is_iconified() {
+  [ "$(map_state "$1")" = "IsIconic" ]
+}
+
 window_title() {
   xdotool getwindowname "$1" 2>/dev/null
 }
@@ -118,6 +125,9 @@ screen_size() {
 # where the operator put it.
 fit_to_screen() {
   local id="$1" dims w h
+  # A minimised window keeps its size: the operator asked for it to leave the
+  # screen, and resizing it would bring it back in the wrong state.
+  is_iconified "$id" && return 0
   dims="$(screen_size)"
   [ -n "${dims:-}" ] || return 0
   w="${dims%x*}"
@@ -125,6 +135,17 @@ fit_to_screen() {
   wmctrl -i -r "$id" -e "0,0,0,${w},${h}" 2>/dev/null
   xdotool windowsize "$id" "$w" "$h" 2>/dev/null
   xdotool windowmove "$id" 0 0 2>/dev/null
+}
+
+# Bring back a window the operator minimised: an iconified window has to be
+# activated to come back to the screen.
+restore_iconified() {
+  local id="$1"
+  wmctrl -i -a "$id" 2>/dev/null
+  xdotool windowmap "$id" 2>/dev/null
+  xdotool windowraise "$id" 2>/dev/null
+  xdotool windowactivate "$id" 2>/dev/null
+  xdotool windowfocus "$id" 2>/dev/null
 }
 
 case "$TARGET" in
@@ -154,6 +175,21 @@ case "$TARGET" in
     found=0
     for id in $(browser_windows); do
       show "$id" focus
+      fit_to_screen "$id"
+      found=1
+      break
+    done
+    [ "$found" -eq 1 ] || {
+      echo "raise-window: no browser window found" >&2
+      exit 66
+    }
+    ;;
+  restore-browser)
+    # Bring back a browser window the operator minimised: an iconified window
+    # has to be activated to come back to the screen.
+    found=0
+    for id in $(browser_windows); do
+      restore_iconified "$id"
       fit_to_screen "$id"
       found=1
       break

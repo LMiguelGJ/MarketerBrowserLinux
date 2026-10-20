@@ -113,10 +113,12 @@
 
     <!--
       A browser window of a launched profile fills the screen, like the
-      application window: the viewer shows one surface at a time.
+      application window: the viewer shows one surface at a time. It keeps its
+      decorations, so the operator can maximise, minimise and close it; the
+      watchdog decides what takes the screen when that happens.
     -->
     <application name="chrome.exe">
-      <decor>no</decor>
+      <decor>yes</decor>
       <position force="yes">
         <x>0</x>
         <y>0</y>
