@@ -18,8 +18,12 @@ ARG DEBIAN_FRONTEND=noninteractive
 ARG WINETRICKS_VERSION=20260125
 ARG WINETRICKS_SHA256=431f82fc74000e6c864409f1d8fb495d696c03928808e3e8acffc45179312a7b
 ARG APP_ZIP_URL=https://www.marketerbrowser.com/Doc/MarketerBrowserLite.zip
-# The build fails when the vendor publishes a different file. Pass "any" to accept it.
-ARG APP_ZIP_SHA256=2c0afda87e9ce896bff34dcf41f5bc4b1abbf099096fef20fd7ba47b1c275570
+# The vendor replaces the file at this URL whenever it releases a new version (it did,
+# between two builds on the same day), so pinning a hash makes builds fail without any
+# attack involved. The default accepts the current file and prints its SHA-256 in the
+# build log. To pin a known build, pass its hash, e.g.
+#   --build-arg APP_ZIP_SHA256=cfe86ad3c1dc0146748b9b6e740f1b61940aeac3be4f540c0ac6b792011d3fb3
+ARG APP_ZIP_SHA256=any
 
 # hadolint ignore=DL3008
 RUN dpkg --add-architecture i386 \
