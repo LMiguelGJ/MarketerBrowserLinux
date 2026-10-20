@@ -1,13 +1,43 @@
 # MarketerBrowserLite (the original Windows application) running under Wine,
 # shown in a browser tab through noVNC.
 #
-# The application binary is NOT part of this repository: it is downloaded from the
-# vendor's official URL while building, and its SHA-256 is verified.
+# The vendor ZIP sits beside this Dockerfile as an ignored build-context file.
+# It is never committed. A private intermediate stage verifies and extracts it;
+# the ZIP itself is not copied into the final image.
 #
 # Build:  docker build -t marketerbrowser-linux .
 # Run:    docker run -p 6080:6080 -e MBL_ACCESS_TOKEN=$(openssl rand -hex 24) \
 #                    -v mbl-data:/data --shm-size=1g marketerbrowser-linux
-#
+
+# This stage keeps the proprietary ZIP out of the final image layers.
+FROM debian:trixie-slim AS app-archive
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+ARG APP_ZIP_SHA256=2c0afda87e9ce896bff34dcf41f5bc4b1abbf099096fef20fd7ba47b1c275570
+ARG APP_EXE_SHA256=0c8d2c489aa22776f8e3ac5ab8cd8e70ef39ad22f4bce4f343e322a219d7994f
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends unzip coreutils \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY MarketerBrowserLite-1.0.0.1.zip /tmp/app.zip
+RUN set -e; \
+    echo "${APP_ZIP_SHA256}  /tmp/app.zip" | sha256sum -c -; \
+    unzip -q /tmp/app.zip -d /opt/mbl-app; \
+    test -f /opt/mbl-app/MarketerBrowserLite.exe; \
+    test -d /opt/mbl-app/Data; \
+    actual="$(sha256sum /opt/mbl-app/MarketerBrowserLite.exe | cut -d' ' -f1)"; \
+    if [ "$actual" != "${APP_EXE_SHA256}" ]; then \
+      echo "ERROR: unexpected MarketerBrowserLite.exe hash." >&2; \
+      echo "  expected ${APP_EXE_SHA256}" >&2; \
+      echo "  got      $actual" >&2; \
+      exit 1; \
+    fi; \
+    mkdir -p /opt/mbl-dist; \
+    mv /opt/mbl-app/Data /opt/mbl-dist/Data; \
+    sha256sum /tmp/app.zip /opt/mbl-app/MarketerBrowserLite.exe | tee /opt/mbl-app/.build-sha256; \
+    rm -f /tmp/app.zip
+
 # Debian 13 (trixie) ships Wine 10, the version this setup was validated with.
 FROM debian:trixie-slim
 
@@ -17,16 +47,6 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG DEBIAN_FRONTEND=noninteractive
 ARG WINETRICKS_VERSION=20260125
 ARG WINETRICKS_SHA256=431f82fc74000e6c864409f1d8fb495d696c03928808e3e8acffc45179312a7b
-# Where to download the application from. The vendor URL below now serves version
-# 1.0.3.8, which does NOT work here: it depends on the WebView2 (Edge) runtime and
-# fails at start. The build therefore checks the executable (see APP_EXE_SHA256) and
-# stops with an explanation. Point this at a copy of the known-good 1.0.0.1 zip that
-# you host yourself, e.g. --build-arg APP_ZIP_URL=https://your-host/MarketerBrowserLite.zip
-ARG APP_ZIP_URL=https://www.marketerbrowser.com/Doc/MarketerBrowserLite.zip
-# SHA-256 of MarketerBrowserLite.exe version 1.0.0.1, the build validated under Wine.
-# Pass "any" to skip the check (the result is not expected to start).
-ARG APP_EXE_SHA256=0c8d2c489aa22776f8e3ac5ab8cd8e70ef39ad22f4bce4f343e322a219d7994f
-ARG APP_ZIP_SHA256=any
 
 # hadolint ignore=DL3008
 RUN dpkg --add-architecture i386 \
@@ -43,6 +63,11 @@ RUN groupadd --gid 1001 app \
     && useradd --uid 1001 --gid 1001 --create-home --shell /bin/bash app \
     && mkdir -p /data /opt/mbl-app /opt/mbl-dist /opt/mbl \
     && chown -R app:app /data /opt/mbl-app /opt/mbl-dist /opt/mbl
+
+# Copy only the extracted program and its initial Data directory from the
+# private stage. The source ZIP is not present in the final image.
+COPY --from=app-archive --chown=1001:1001 /opt/mbl-app/ /opt/mbl-app/
+COPY --from=app-archive --chown=1001:1001 /opt/mbl-dist/ /opt/mbl-dist/
 
 # winetricks, pinned by version and checked by hash.
 RUN curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors -o /usr/local/bin/winetricks \
@@ -72,30 +97,6 @@ RUN WINEDLLOVERRIDES="mscoree,mshtml=" xvfb-run -a wineboot -u \
     && wine reg add "HKCU\\Software\\Wine\\X11 Driver" /v UseTakeFocus /t REG_SZ /d N /f \
     && wineserver -w \
     && rm -rf "$HOME/.cache/winetricks" /tmp/*
-
-# The application, from the vendor, verified.
-# The vendor server sometimes drops the connection halfway through the 44 MB file,
-# hence the retries.
-RUN curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors -o /tmp/app.zip "${APP_ZIP_URL}" \
-    && if [ "${APP_ZIP_SHA256}" != "any" ]; then \
-         echo "${APP_ZIP_SHA256}  /tmp/app.zip" | sha256sum -c - ; \
-       fi \
-    && unzip -q /tmp/app.zip -d /opt/mbl-app \
-    && test -f /opt/mbl-app/MarketerBrowserLite.exe \
-    && if [ "${APP_EXE_SHA256}" != "any" ]; then \
-         actual="$(sha256sum /opt/mbl-app/MarketerBrowserLite.exe | cut -d' ' -f1)"; \
-         if [ "$actual" != "${APP_EXE_SHA256}" ]; then \
-           echo "ERROR: the downloaded MarketerBrowserLite.exe is not version 1.0.0.1." >&2; \
-           echo "  expected ${APP_EXE_SHA256}" >&2; \
-           echo "  got      $actual" >&2; \
-           echo "The vendor now serves a build that needs WebView2 and does not run under Wine." >&2; \
-           echo "Host the 1.0.0.1 zip yourself and pass --build-arg APP_ZIP_URL=<url>." >&2; \
-           exit 1; \
-         fi; \
-       fi \
-    && mv /opt/mbl-app/Data /opt/mbl-dist/Data \
-    && sha256sum /tmp/app.zip /opt/mbl-app/MarketerBrowserLite.exe | tee /opt/mbl-app/.build-sha256 \
-    && rm -f /tmp/app.zip
 
 COPY --chown=1001:1001 docker/ /opt/mbl/
 RUN chmod 755 /opt/mbl/*.sh
