@@ -1,0 +1,74 @@
+# ---------------------------------------------------------------------------
+# Original Windows distribution: proprietary binaries plus user data
+# (profiles, cookies, backups, logs). Never belongs in this repository.
+# ---------------------------------------------------------------------------
+/win-native/
+
+# Safety net: Windows binaries must never be committed from anywhere else.
+*.exe
+*.dll
+*.pdb
+*.zip
+
+# ---------------------------------------------------------------------------
+# Local agent tooling. Only the migration plan is kept.
+# ---------------------------------------------------------------------------
+/.atl/
+/.pi/*
+!/.pi/plans/
+
+# ---------------------------------------------------------------------------
+# Secrets and credentials
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# ---------------------------------------------------------------------------
+# Runtime data produced by the service: SQLite database, browser profiles,
+# cookies and sessions. These are user data, not source.
+# ---------------------------------------------------------------------------
+/data/
+/linux-native/data/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.db
+
+# Profile exports bundle the profile cookies, so they are credentials.
+*.mbl.json
+*.har
+
+# ---------------------------------------------------------------------------
+# Dependencies, build output and test artifacts
+# ---------------------------------------------------------------------------
+node_modules/
+npm-debug.log*
+*.log
+coverage/
+test-results/
+playwright-report/
+
+# ---------------------------------------------------------------------------
+# Local overrides of the container setup
+# ---------------------------------------------------------------------------
+compose.override.yaml
+compose.override.yml
+docker-compose.override.yml
+
+# ---------------------------------------------------------------------------
+# Operating system, editor and sync clutter
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+*.tmp
+*.swp
+~$*
+.~lock.*
+.vscode/
+.idea/
