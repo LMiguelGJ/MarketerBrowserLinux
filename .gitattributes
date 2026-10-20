@@ -1,0 +1,9 @@
+# Keep line endings as LF in the repository and in every checkout.
+# Windows autocrlf would otherwise turn shell scripts and the Dockerfile
+# into CRLF, which breaks them on Linux.
+* text=auto eol=lf
+
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
