@@ -47,6 +47,23 @@
     <left>0</left>
     <right>0</right>
   </margins>
+  <keyboard>
+    <!--
+      The floating buttons of the viewer send these combinations over the VNC
+      connection, so the operator can bring a window to the front from the web
+      page. They are also usable from a native VNC client.
+    -->
+    <keybind key="C-F1">
+      <action name="Execute">
+        <command>/opt/mbl/raise-window.sh app</command>
+      </action>
+    </keybind>
+    <keybind key="C-F2">
+      <action name="Execute">
+        <command>/opt/mbl/raise-window.sh browser</command>
+      </action>
+    </keybind>
+  </keyboard>
 
   <applications>
     <!-- The real main window of MarketerBrowserLite. -->

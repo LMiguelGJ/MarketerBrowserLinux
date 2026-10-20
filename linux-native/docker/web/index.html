@@ -21,6 +21,47 @@
         background: #000;
       }
 
+      /*
+        Floating controls over the shared screen. The application hides its own
+        window while a profile runs, so these buttons are the way to bring a
+        window back without leaving the page.
+      */
+      #toolbar {
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        z-index: 20;
+        display: flex;
+        gap: 8px;
+      }
+
+      #toolbar[hidden] {
+        display: none;
+      }
+
+      #toolbar button {
+        padding: 7px 12px;
+        border-radius: 8px;
+        border: 1px solid #39425a;
+        background: rgba(22, 26, 34, 0.82);
+        color: #e6e9ef;
+        font-size: 13px;
+        line-height: 1.2;
+        cursor: pointer;
+        backdrop-filter: blur(4px);
+      }
+
+      #toolbar button:hover {
+        background: rgba(79, 140, 255, 0.9);
+        border-color: #4f8cff;
+        color: #fff;
+      }
+
+      #toolbar button:focus-visible {
+        outline: 2px solid #4f8cff;
+        outline-offset: 1px;
+      }
+
       #login {
         position: fixed;
         inset: 0;
@@ -99,6 +140,15 @@
       </form>
     </div>
     <div id="screen" hidden></div>
+
+    <div id="toolbar" hidden>
+      <button type="button" id="focus-app" title="Bring the application to the front">
+        App
+      </button>
+      <button type="button" id="focus-browser" title="Bring the browser of the profile to the front">
+        Navegador
+      </button>
+    </div>
 
     <script type="module" src="/app.js"></script>
   </body>
