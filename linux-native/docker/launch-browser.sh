@@ -83,6 +83,13 @@ wine "$launcher" \
   about:blank >/tmp/mbl-browser.log 2>&1 &
 
 # Give the window time to appear, then make it fill the screen.
+#
+# The window is sized explicitly instead of relying on the window manager rule:
+# the browser resizes itself after the window manager has already placed it.
+screen_size() {
+  xdpyinfo 2>/dev/null | awk '/dimensions:/ {print $2; exit}'
+}
+
 for _ in $(seq 1 40); do
   sleep 0.5
   id="$(browser_window)"
@@ -91,6 +98,15 @@ for _ in $(seq 1 40); do
     xdotool windowraise "$id" 2>/dev/null
     xdotool windowactivate "$id" 2>/dev/null
     xdotool windowfocus "$id" 2>/dev/null
+
+    dims="$(screen_size)"
+    if [ -n "${dims:-}" ]; then
+      w="${dims%x*}"
+      h="${dims#*x}"
+      wmctrl -i -r "$id" -e "0,0,0,${w},${h}" 2>/dev/null
+      xdotool windowsize "$id" "$w" "$h" 2>/dev/null
+      xdotool windowmove "$id" 0 0 2>/dev/null
+    fi
     log "browser window is up ($id)"
     exit 0
   fi
