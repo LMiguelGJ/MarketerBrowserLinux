@@ -39,28 +39,60 @@ if [ -z "$launcher" ]; then
   exit 66
 fi
 
-# The browser creates dozens of 1x1 helper windows: only the real one has a
-# size. The largest candidate is the browser window.
+# The browser creates dozens of 1x1 helper windows, and the main window can be
+# resized to something smaller than a leftover window of the same class. The
+# main window is the one that carries a title ("about:blank - Chromium"), so it
+# is picked by name, not by size.
 browser_window() {
-  local id size
+  local id name size
   for id in $(xdotool search --class 'chrome.exe' 2>/dev/null) \
              $(xdotool search --class 'Chromium' 2>/dev/null); do
+    name="$(xdotool getwindowname "$id" 2>/dev/null)"
+    case "$name" in
+      *Chromium* | *"Google Chrome"*) ;;
+      *) continue ;;
+    esac
     size="$(xwininfo -id "$id" 2>/dev/null |
       awk -F': ' '/Width:/ {w=$2} /Height:/ {h=$2} END {print w" "h}')"
     [ "${size%% *}" -ge 200 ] 2>/dev/null || continue
     [ "${size##* }" -ge 200 ] 2>/dev/null || continue
-    echo "$id ${size%% *}"
-  done | sort -k2 -n | tail -1 | cut -d' ' -f1
+    echo "$id"
+    return 0
+  done
+  return 1
+}
+
+# The screen size of the display.
+screen_size() {
+  xdpyinfo 2>/dev/null | awk '/dimensions:/ {print $2; exit}'
+}
+
+# Show a window, give it the focus and make it fill the screen.
+#
+# The size is set explicitly instead of relying on the window manager rule: the
+# browser resizes itself after the window manager has already placed it.
+place_window() {
+  local id="$1" dims w h
+  xdotool windowmap "$id" 2>/dev/null
+  xdotool windowraise "$id" 2>/dev/null
+  xdotool windowactivate "$id" 2>/dev/null
+  xdotool windowfocus "$id" 2>/dev/null
+
+  dims="$(screen_size)"
+  if [ -n "${dims:-}" ]; then
+    w="${dims%x*}"
+    h="${dims#*x}"
+    wmctrl -i -r "$id" -e "0,0,0,${w},${h}" 2>/dev/null
+    xdotool windowsize "$id" "$w" "$h" 2>/dev/null
+    xdotool windowmove "$id" 0 0 2>/dev/null
+  fi
 }
 
 # Do not start a second browser when one is already running.
 existing="$(browser_window)"
 if [ -n "$existing" ]; then
   log "a browser window is already open ($existing), bringing it to the front"
-  xdotool windowmap "$existing" 2>/dev/null
-  xdotool windowraise "$existing" 2>/dev/null
-  xdotool windowactivate "$existing" 2>/dev/null
-  xdotool windowfocus "$existing" 2>/dev/null
+  place_window "$existing"
   exit 0
 fi
 
@@ -83,30 +115,11 @@ wine "$launcher" \
   about:blank >/tmp/mbl-browser.log 2>&1 &
 
 # Give the window time to appear, then make it fill the screen.
-#
-# The window is sized explicitly instead of relying on the window manager rule:
-# the browser resizes itself after the window manager has already placed it.
-screen_size() {
-  xdpyinfo 2>/dev/null | awk '/dimensions:/ {print $2; exit}'
-}
-
 for _ in $(seq 1 40); do
   sleep 0.5
   id="$(browser_window)"
   if [ -n "$id" ]; then
-    xdotool windowmap "$id" 2>/dev/null
-    xdotool windowraise "$id" 2>/dev/null
-    xdotool windowactivate "$id" 2>/dev/null
-    xdotool windowfocus "$id" 2>/dev/null
-
-    dims="$(screen_size)"
-    if [ -n "${dims:-}" ]; then
-      w="${dims%x*}"
-      h="${dims#*x}"
-      wmctrl -i -r "$id" -e "0,0,0,${w},${h}" 2>/dev/null
-      xdotool windowsize "$id" "$w" "$h" 2>/dev/null
-      xdotool windowmove "$id" 0 0 2>/dev/null
-    fi
+    place_window "$id"
     log "browser window is up ($id)"
     exit 0
   fi
