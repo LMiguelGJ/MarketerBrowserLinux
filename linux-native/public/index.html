@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MBL Linux Native</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>MBL Linux Native</h1>
+      <div class="topbar-actions">
+        <input id="token" type="password" placeholder="Token de acceso" autocomplete="off" />
+        <button id="save-token" type="button">Guardar token</button>
+        <span id="auth-state" class="badge badge-off">sin autenticar</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="panel">
+        <h2>Perfiles</h2>
+        <form id="create-profile" class="row">
+          <input id="profile-name" type="text" placeholder="Nombre del perfil" required />
+          <input id="proxy-host" type="text" placeholder="Proxy host (opcional)" />
+          <input id="proxy-port" type="number" placeholder="Puerto" min="1" max="65535" />
+          <select id="proxy-type">
+            <option value="">Sin proxy</option>
+            <option value="http">http</option>
+            <option value="socks5">socks5</option>
+          </select>
+          <button type="submit">Crear</button>
+        </form>
+        <p id="status" class="status" role="status"></p>
+        <table class="profiles">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Estado</th>
+              <th>Proxy</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="profile-rows"></tbody>
+        </table>
+      </section>
+
+      <section class="panel viewer-panel">
+        <h2>Visor</h2>
+        <div class="row">
+          <select id="viewer-profile"></select>
+          <input id="viewer-url" type="text" placeholder="https://example.com" />
+          <button id="viewer-navigate" type="button">Navegar</button>
+          <button id="viewer-refresh" type="button">Capturar</button>
+        </div>
+        <div class="viewer-frame">
+          <img id="viewer-image" alt="Captura del navegador del perfil" />
+          <p id="viewer-empty" class="status">Selecciona un perfil en ejecución para ver su navegador.</p>
+        </div>
+        <p id="viewer-status" class="status" role="status"></p>
+      </section>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
