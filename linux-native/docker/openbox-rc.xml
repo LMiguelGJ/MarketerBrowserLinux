@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Minimal Openbox configuration for a kiosk-style display.
+
+  The application draws its own title bar, so its main window is shown
+  maximized and undecorated: the browser tab shows the application and
+  nothing else. Dialogs keep ordinary frames so they stay usable.
+-->
+<openbox_config xmlns="http://openbox.org/3.4/rc">
+  <resistance>
+    <strength>10</strength>
+    <screen_edge_strength>20</screen_edge_strength>
+  </resistance>
+
+  <focus>
+    <focusNew>yes</focusNew>
+    <followMouse>no</followMouse>
+    <focusLast>yes</focusLast>
+    <underMouse>no</underMouse>
+    <focusDelay>200</focusDelay>
+    <raiseOnFocus>no</raiseOnFocus>
+  </focus>
+
+  <placement>
+    <policy>Smart</policy>
+    <center>yes</center>
+    <monitor>Primary</monitor>
+    <primaryMonitor>1</primaryMonitor>
+  </placement>
+
+  <theme>
+    <name>Clearlooks</name>
+    <titleLayout>NLIMC</titleLayout>
+    <keepBorder>yes</keepBorder>
+    <animateIconify>no</animateIconify>
+  </theme>
+
+  <desktops>
+    <number>1</number>
+    <firstdesk>1</firstdesk>
+    <popupTime>0</popupTime>
+  </desktops>
+
+  <margins>
+    <top>0</top>
+    <bottom>0</bottom>
+    <left>0</left>
+    <right>0</right>
+  </margins>
+
+  <applications>
+    <!-- The real main window of MarketerBrowserLite. -->
+    <application name="marketerbrowserlite.exe" title="MainForm">
+      <decor>no</decor>
+      <!--
+        Not "maximized": the application draws its own title bar and a
+        maximized state cuts it off. Fixed position and size fill the screen
+        and keep the layout intact.
+      -->
+      <position force="yes">
+        <x>0</x>
+        <y>0</y>
+      </position>
+      <size>
+        <width>100%</width>
+        <height>100%</height>
+      </size>
+      <focus>yes</focus>
+      <layer>normal</layer>
+      <skip_taskbar>yes</skip_taskbar>
+      <skip_pager>yes</skip_pager>
+    </application>
+  </applications>
+</openbox_config>
