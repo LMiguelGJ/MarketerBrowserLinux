@@ -1,4 +1,4 @@
-# Keep the build context small; the root-level private ZIP is the sole exception.
+# The proprietary application archive is supplied only as a runtime volume, never in the build context.
 tests
 docs
 scripts
@@ -16,4 +16,3 @@ package-lock.json
 *.log
 *.png
 **/*.zip
-!MarketerBrowserLite-1.0.0.1.zip

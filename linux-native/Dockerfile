@@ -1,43 +1,9 @@
 # MarketerBrowserLite (the original Windows application) running under Wine,
 # shown in a browser tab through noVNC.
 #
-# The vendor ZIP sits beside this Dockerfile as an ignored build-context file.
-# It is never committed. A private intermediate stage verifies and extracts it;
-# the ZIP itself is not copied into the final image.
+# Build the container without the private vendor ZIP. The runtime installer reads
+# the ZIP from a read-only bind mount and extracts it into persistent /data.
 #
-# Build:  docker build -t marketerbrowser-linux .
-# Run:    docker run -p 6080:6080 -e MBL_ACCESS_TOKEN=$(openssl rand -hex 24) \
-#                    -v mbl-data:/data --shm-size=1g marketerbrowser-linux
-
-# This stage keeps the proprietary ZIP out of the final image layers.
-FROM debian:trixie-slim AS app-archive
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-
-ARG APP_ZIP_SHA256=2c0afda87e9ce896bff34dcf41f5bc4b1abbf099096fef20fd7ba47b1c275570
-ARG APP_EXE_SHA256=0c8d2c489aa22776f8e3ac5ab8cd8e70ef39ad22f4bce4f343e322a219d7994f
-
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends unzip coreutils \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY MarketerBrowserLite-1.0.0.1.zip /tmp/app.zip
-RUN set -e; \
-    echo "${APP_ZIP_SHA256}  /tmp/app.zip" | sha256sum -c -; \
-    unzip -q /tmp/app.zip -d /opt/mbl-app; \
-    test -f /opt/mbl-app/MarketerBrowserLite.exe; \
-    test -d /opt/mbl-app/Data; \
-    actual="$(sha256sum /opt/mbl-app/MarketerBrowserLite.exe | cut -d' ' -f1)"; \
-    if [ "$actual" != "${APP_EXE_SHA256}" ]; then \
-      echo "ERROR: unexpected MarketerBrowserLite.exe hash." >&2; \
-      echo "  expected ${APP_EXE_SHA256}" >&2; \
-      echo "  got      $actual" >&2; \
-      exit 1; \
-    fi; \
-    mkdir -p /opt/mbl-dist; \
-    mv /opt/mbl-app/Data /opt/mbl-dist/Data; \
-    sha256sum /tmp/app.zip /opt/mbl-app/MarketerBrowserLite.exe | tee /opt/mbl-app/.build-sha256; \
-    rm -f /tmp/app.zip
-
 # Debian 13 (trixie) ships Wine 10, the version this setup was validated with.
 FROM debian:trixie-slim
 
@@ -52,7 +18,7 @@ ARG WINETRICKS_SHA256=431f82fc74000e6c864409f1d8fb495d696c03928808e3e8acffc45179
 RUN dpkg --add-architecture i386 \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
-        ca-certificates curl wget unzip cabextract tini procps \
+        ca-certificates coreutils curl wget unzip cabextract tini procps \
         wine wine32 wine64 libwine fonts-liberation fonts-wine \
         xvfb xauth x11-utils xdotool wmctrl openbox x11vnc \
         novnc websockify \
@@ -61,13 +27,8 @@ RUN dpkg --add-architecture i386 \
 
 RUN groupadd --gid 1001 app \
     && useradd --uid 1001 --gid 1001 --create-home --shell /bin/bash app \
-    && mkdir -p /data /opt/mbl-app /opt/mbl-dist /opt/mbl \
-    && chown -R app:app /data /opt/mbl-app /opt/mbl-dist /opt/mbl
-
-# Copy only the extracted program and its initial Data directory from the
-# private stage. The source ZIP is not present in the final image.
-COPY --from=app-archive --chown=1001:1001 /opt/mbl-app/ /opt/mbl-app/
-COPY --from=app-archive --chown=1001:1001 /opt/mbl-dist/ /opt/mbl-dist/
+    && mkdir -p /data /opt/mbl \
+    && chown -R app:app /data /opt/mbl
 
 # winetricks, pinned by version and checked by hash.
 RUN curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors -o /usr/local/bin/winetricks \
@@ -104,7 +65,7 @@ RUN chmod 755 /opt/mbl/*.sh
 ENV DISPLAY=:99 \
     SCREEN=1600x900x24 \
     WEB_PORT=6080 \
-    MBL_APP_DIR=/opt/mbl-app \
+    MBL_APP_DIR=/data/app \
     MBL_DATA_DIR=/data
 
 VOLUME ["/data"]

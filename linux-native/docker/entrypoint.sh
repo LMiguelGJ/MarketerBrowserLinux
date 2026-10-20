@@ -6,9 +6,8 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_DIR="${MBL_APP_DIR:-/opt/mbl-app}"
 DATA_DIR="${MBL_DATA_DIR:-/data}"
-DIST_DIR="${MBL_DIST_DIR:-/opt/mbl-dist}"
+APP_DIR="${MBL_APP_DIR:-$DATA_DIR/app}"
 export DISPLAY="${DISPLAY:-:99}"
 
 # Fail before starting anything if the token is missing or weak.
@@ -18,6 +17,9 @@ if ! [[ "${MBL_ACCESS_TOKEN:-}" =~ ^[A-Za-z0-9_-]{16,128}$ ]]; then
   exit 64
 fi
 
+# Validate the mounted archive before creating or changing persistent app files.
+bash "$HERE/install-app.sh"
+
 # --- Persistence -----------------------------------------------------------
 # The application writes next to its executable, and downloads its own
 # components (proxy helper, Chrome-based browser) into C:\ProgramData inside the
@@ -26,12 +28,16 @@ fi
 mkdir -p "$DATA_DIR"/{Data,Backups,BackupTemp,Logs,UpdateInstall}
 mkdir -p "$DATA_DIR"/ProgramData/{SharkBrowser,S5Proxyer}
 
-if [ -z "$(ls -A "$DATA_DIR/Data" 2>/dev/null)" ] && [ -d "$DIST_DIR/Data" ]; then
-  cp -a "$DIST_DIR/Data/." "$DATA_DIR/Data/"
-fi
-
 for d in Data Backups BackupTemp Logs UpdateInstall; do
-  ln -sfn "$DATA_DIR/$d" "$APP_DIR/$d"
+  app_data="$APP_DIR/$d"
+  data_target="$DATA_DIR/$d"
+  if [ -d "$app_data" ] && [ ! -L "$app_data" ]; then
+    # Migrate any initial or pre-existing app-local files without overwriting
+    # data already stored in the persistent volume.
+    cp -an "$app_data/." "$data_target/"
+  fi
+  rm -rf -- "$app_data"
+  ln -s "$data_target" "$app_data"
 done
 
 PROGRAM_DATA="${WINEPREFIX:-$HOME/.wine}/drive_c/ProgramData"
