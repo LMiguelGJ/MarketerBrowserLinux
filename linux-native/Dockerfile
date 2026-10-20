@@ -42,7 +42,7 @@ RUN groupadd --gid 1001 app \
     && chown -R app:app /data /opt/mbl-app /opt/mbl-dist /opt/mbl
 
 # winetricks, pinned by version and checked by hash.
-RUN curl -fsSL -o /usr/local/bin/winetricks \
+RUN curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors -o /usr/local/bin/winetricks \
         "https://raw.githubusercontent.com/Winetricks/winetricks/${WINETRICKS_VERSION}/src/winetricks" \
     && echo "${WINETRICKS_SHA256}  /usr/local/bin/winetricks" | sha256sum -c - \
     && chmod 755 /usr/local/bin/winetricks
@@ -71,7 +71,9 @@ RUN WINEDLLOVERRIDES="mscoree,mshtml=" xvfb-run -a wineboot -u \
     && rm -rf "$HOME/.cache/winetricks" /tmp/*
 
 # The application, from the vendor, verified.
-RUN curl -fsSL -o /tmp/app.zip "${APP_ZIP_URL}" \
+# The vendor server sometimes drops the connection halfway through the 44 MB file,
+# hence the retries.
+RUN curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors -o /tmp/app.zip "${APP_ZIP_URL}" \
     && if [ "${APP_ZIP_SHA256}" != "any" ]; then \
          echo "${APP_ZIP_SHA256}  /tmp/app.zip" | sha256sum -c - ; \
        fi \
