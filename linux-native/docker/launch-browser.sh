@@ -15,7 +15,6 @@
 set -u
 
 export DISPLAY="${DISPLAY:-:99}"
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PREFIX="${WINEPREFIX:-$HOME/.wine}"
 SHARK_DIR="${MBL_SHARK_DIR:-$PREFIX/drive_c/ProgramData/SharkBrowser/SharkBrowser}"
 DATA_DIR="${MBL_BROWSER_DATA_DIR:-$PREFIX/drive_c/profiles/mbl}"
@@ -115,15 +114,32 @@ wine "$launcher" \
   about:blank >/tmp/mbl-browser.log 2>&1 &
 
 # Give the window time to appear, then make it fill the screen.
+#
+# The size is enforced for a few seconds: the browser applies its own window
+# bounds after the window manager has already placed it, and on a slow host it
+# wins that race.
 for _ in $(seq 1 40); do
   sleep 0.5
   id="$(browser_window)"
   if [ -n "$id" ]; then
     place_window "$id"
     log "browser window is up ($id)"
-    exit 0
+    opened=1
+    break
   fi
 done
 
-log "the browser did not open a window in time; see /tmp/mbl-browser.log"
-exit 1
+if [ "${opened:-0}" -ne 1 ]; then
+  log "the browser did not open a window in time; see /tmp/mbl-browser.log"
+  exit 1
+fi
+
+# Keep the window on the whole screen while the browser settles.
+for _ in $(seq 1 20); do
+  sleep 0.5
+  id="$(browser_window)"
+  [ -n "$id" ] || break
+  place_window "$id"
+done
+
+exit 0
