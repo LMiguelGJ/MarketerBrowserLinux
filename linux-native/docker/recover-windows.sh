@@ -18,12 +18,12 @@
 # Environment:
 #   DISPLAY           (default :99)
 #   RECOVER_INTERVAL  seconds between checks (default 2)
-#   RECOVER_APP_TITLE window title of the application (default MainForm)
+#   MBL_APP_CLASS     class of the application window (default marketerbrowserlite.exe)
 set -u
 
 export DISPLAY="${DISPLAY:-:99}"
 INTERVAL="${RECOVER_INTERVAL:-2}"
-APP_TITLE="${RECOVER_APP_TITLE:-MainForm}"
+APP_CLASS="${MBL_APP_CLASS:-marketerbrowserlite.exe}"
 MIN_SIZE=200
 
 # Geometry of a window: "WIDTH HEIGHT".
@@ -37,9 +37,11 @@ map_state() {
 }
 
 # The application window and the browsers it launches, without the 1x1 helpers.
+# The application is found by class, not by title: while it shows a modal box its
+# main window can be renamed, and a title search would then find nothing.
 candidate_windows() {
   local id size
-  for id in $(xdotool search --name "$APP_TITLE" 2>/dev/null) \
+  for id in $(xdotool search --class "$APP_CLASS" 2>/dev/null) \
              $(xdotool search --class 'chrome.exe' 2>/dev/null) \
              $(xdotool search --class 'Chromium' 2>/dev/null); do
     size="$(geometry "$id")"
@@ -84,9 +86,9 @@ while :; do
     restored=0
     for id in "${ids[@]:-}"; do
       [ -n "$id" ] || continue
-      name="$(xdotool getwindowname "$id" 2>/dev/null)"
-      case "$name" in
-        "$APP_TITLE"*)
+      class="$(xprop -id "$id" WM_CLASS 2>/dev/null | head -1)"
+      case "$class" in
+        *"$APP_CLASS"*)
           restore_app "$id"
           restored=1
           break

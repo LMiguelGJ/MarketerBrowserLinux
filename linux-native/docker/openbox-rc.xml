@@ -63,6 +63,16 @@
         <command>/opt/mbl/raise-window.sh browser</command>
       </action>
     </keybind>
+    <keybind key="C-F3">
+      <action name="Execute">
+        <command>/opt/mbl/launch-browser.sh</command>
+      </action>
+    </keybind>
+    <keybind key="C-F4">
+      <action name="Execute">
+        <command>/opt/mbl/show-last-error.sh</command>
+      </action>
+    </keybind>
   </keyboard>
 
   <applications>
@@ -99,6 +109,26 @@
     -->
     <application name="marketerbrowserlite.exe">
       <layer>above</layer>
+    </application>
+
+    <!--
+      A browser window of a launched profile fills the screen, like the
+      application window: the viewer shows one surface at a time.
+    -->
+    <application name="chrome.exe">
+      <decor>no</decor>
+      <position force="yes">
+        <x>0</x>
+        <y>0</y>
+      </position>
+      <size>
+        <width>100%</width>
+        <height>100%</height>
+      </size>
+      <focus>yes</focus>
+      <layer>above</layer>
+      <skip_taskbar>yes</skip_taskbar>
+      <skip_pager>yes</skip_pager>
     </application>
   </applications>
 </openbox_config>

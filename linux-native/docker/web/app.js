@@ -80,7 +80,8 @@ form.addEventListener('submit', (event) => {
 // connection is what lets a button in this page reach the container.
 const COMBINATIONS = {
   app: { key: KeyTable.XK_F1, code: 'F1' },
-  browser: { key: KeyTable.XK_F2, code: 'F2' },
+  browser: { key: KeyTable.XK_F3, code: 'F3' },
+  error: { key: KeyTable.XK_F4, code: 'F4' },
 };
 
 function sendCombination({ key, code }) {
@@ -98,6 +99,10 @@ document.getElementById('focus-app').addEventListener('click', () => {
 
 document.getElementById('focus-browser').addEventListener('click', () => {
   sendCombination(COMBINATIONS.browser);
+});
+
+document.getElementById('show-error').addEventListener('click', () => {
+  sendCombination(COMBINATIONS.error);
 });
 
 // A page refresh keeps the session usable within the same tab.

@@ -6,18 +6,25 @@
 # window manager, so the X tree (xdotool) is used to find it and XMapWindow to
 # show it again.
 #
-# Usage: raise-window.sh <app|browser|restore>
+# The windows are found by class, not by title: while the application shows a
+# modal error box its main window can be renamed, and a title search would then
+# find nothing at all.
+#
+# Usage: raise-window.sh <app|browser|dialog|restore>
 #   app      the application window, with the focus, so it stays visible
 #   browser  a browser window of a launched profile
+#   dialog   a message box of the application
 #   restore  the application and every browser window
 set -u
 
 export DISPLAY="${DISPLAY:-:99}"
+APP_CLASS="${MBL_APP_CLASS:-marketerbrowserlite.exe}"
 APP_TITLE="${RECOVER_APP_TITLE:-MainForm}"
+BROWSER_CLASSES="${MBL_BROWSER_CLASSES:-chrome.exe Chromium}"
 MIN_SIZE=200
 
 usage() {
-  echo "usage: raise-window.sh <app|browser|restore>" >&2
+  echo "usage: raise-window.sh <app|browser|dialog|restore>" >&2
   exit 64
 }
 
@@ -41,30 +48,47 @@ map_state() {
   xwininfo -id "$1" 2>/dev/null | awk -F': ' '/Map State/ {print $2; exit}'
 }
 
-# Windows of the application.
+window_title() {
+  xdotool getwindowname "$1" 2>/dev/null
+}
+
+# Windows of the application, largest first.
 app_windows() {
-  local id
-  for id in $(xdotool search --name "$APP_TITLE" 2>/dev/null); do
-    is_big_enough "$id" && echo "$id"
-  done
+  local id size
+  for id in $(xdotool search --class "$APP_CLASS" 2>/dev/null); do
+    is_big_enough "$id" && echo "$id $(geometry "$id")"
+  done | sort -k2 -t' ' | awk '{print $1}'
 }
 
-# Windows of the browsers the application launches, without the 1x1 helpers.
+# The message boxes of the application: they are smaller than the main window
+# and carry no title, so they are told apart by size.
+dialog_windows() {
+  local id size
+  for id in $(xdotool search --class "$APP_CLASS" 2>/dev/null); do
+    size="$(geometry "$id")"
+    case "$size" in
+      1x1* | *x1) continue ;;
+    esac
+    echo "$id $size"
+  done | sort -k2 -t' ' | awk '{print $1}'
+}
+
 browser_windows() {
-  local id
-  for id in $(xdotool search --class 'chrome.exe' 2>/dev/null) \
-             $(xdotool search --class 'Chromium' 2>/dev/null); do
-    is_big_enough "$id" && echo "$id"
+  local id cls
+  for cls in $BROWSER_CLASSES; do
+    for id in $(xdotool search --class "$cls" 2>/dev/null); do
+      is_big_enough "$id" && echo "$id"
+    done
   done
 }
 
+# Show a window and give it the focus. The application hides itself again when
+# it loses the focus, so the focus is part of showing it.
 show() {
   local id="$1" focus="${2:-no}"
   xdotool windowmap "$id" 2>/dev/null
   xdotool windowraise "$id" 2>/dev/null
   if [ "$focus" = "focus" ]; then
-    # The application hides itself again when it loses the focus, so it has to
-    # get the focus back to stay visible.
     xdotool windowactivate "$id" 2>/dev/null
     xdotool windowfocus "$id" 2>/dev/null
   fi
@@ -74,10 +98,20 @@ case "$TARGET" in
   app)
     found=0
     for id in $(app_windows); do
-      show "$id" focus
-      found=1
-      break
+      if [ "$(window_title "$id")" = "$APP_TITLE" ]; then
+        show "$id" focus
+        found=1
+        break
+      fi
     done
+    # The main window can be renamed while the application shows a modal box.
+    if [ "$found" -eq 0 ]; then
+      for id in $(app_windows); do
+        show "$id" focus
+        found=1
+        break
+      done
+    fi
     [ "$found" -eq 1 ] || {
       echo "raise-window: no application window found" >&2
       exit 66
@@ -92,6 +126,18 @@ case "$TARGET" in
     done
     [ "$found" -eq 1 ] || {
       echo "raise-window: no browser window found" >&2
+      exit 66
+    }
+    ;;
+  dialog)
+    found=0
+    for id in $(dialog_windows); do
+      show "$id" focus
+      found=1
+      break
+    done
+    [ "$found" -eq 1 ] || {
+      echo "raise-window: no application dialog found" >&2
       exit 66
     }
     ;;
