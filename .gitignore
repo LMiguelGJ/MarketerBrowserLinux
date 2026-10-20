@@ -81,3 +81,8 @@ desktop.ini
 
 # Local ODD task tracking (specs, log); mirrored in memory, not source.
 /odd/
+
+# Local verification artifacts
+.playwright-mcp/
+prod-*.png
+probe-*.png
