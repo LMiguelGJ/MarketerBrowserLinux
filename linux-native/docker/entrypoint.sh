@@ -44,6 +44,7 @@ done
 bash "$HERE/start-display.sh"
 bash "$HERE/start-web.sh" &
 bash "$HERE/dismiss-dialogs.sh" &
+bash "$HERE/fit-main-window.sh" &
 
 cd "$APP_DIR"
 wine MarketerBrowserLite.exe &
