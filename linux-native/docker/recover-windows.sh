@@ -104,5 +104,10 @@ while :; do
     fi
   fi
 
+  # A browser window restores its own saved bounds shortly after it opens, so
+  # its size is enforced on every pass. The focus is left alone: the
+  # application hides itself when it loses the focus.
+  bash "$HERE/raise-window.sh" browser-size >/dev/null 2>&1 || true
+
   sleep "$INTERVAL"
 done

@@ -74,12 +74,26 @@ dialog_windows() {
 }
 
 browser_windows() {
-  local id cls
+  local id cls size named=""
+  # The main window of the browser is the one that carries a title; the browser
+  # also leaves helper windows of the same class behind, and resizing one of
+  # those would be pointless.
   for cls in $BROWSER_CLASSES; do
     for id in $(xdotool search --class "$cls" 2>/dev/null); do
-      is_big_enough "$id" && echo "$id"
+      size="$(geometry "$id")"
+      [ "${size%% *}" -ge "$MIN_SIZE" ] 2>/dev/null || continue
+      [ "${size##* }" -ge "$MIN_SIZE" ] 2>/dev/null || continue
+      case "$(window_title "$id")" in
+        *Chromium* | *"Google Chrome"*)
+          echo "$id"
+          return 0
+          ;;
+      esac
+      [ -n "$named" ] || named="$id"
     done
   done
+  [ -n "$named" ] && echo "$named"
+  return 0
 }
 
 # Show a window and give it the focus. The application hides itself again when
@@ -92,6 +106,25 @@ show() {
     xdotool windowactivate "$id" 2>/dev/null
     xdotool windowfocus "$id" 2>/dev/null
   fi
+}
+
+# The size of the display.
+screen_size() {
+  xdpyinfo 2>/dev/null | awk '/dimensions:/ {print $2; exit}'
+}
+
+# Resize a window to the whole screen, without taking the focus: the
+# application hides itself when it loses the focus, so the focus must stay
+# where the operator put it.
+fit_to_screen() {
+  local id="$1" dims w h
+  dims="$(screen_size)"
+  [ -n "${dims:-}" ] || return 0
+  w="${dims%x*}"
+  h="${dims#*x}"
+  wmctrl -i -r "$id" -e "0,0,0,${w},${h}" 2>/dev/null
+  xdotool windowsize "$id" "$w" "$h" 2>/dev/null
+  xdotool windowmove "$id" 0 0 2>/dev/null
 }
 
 case "$TARGET" in
@@ -121,6 +154,22 @@ case "$TARGET" in
     found=0
     for id in $(browser_windows); do
       show "$id" focus
+      fit_to_screen "$id"
+      found=1
+      break
+    done
+    [ "$found" -eq 1 ] || {
+      echo "raise-window: no browser window found" >&2
+      exit 66
+    }
+    ;;
+  browser-size)
+    # Resize the browser window to the whole screen, keeping the focus where it
+    # is. The browser restores its own saved bounds shortly after it opens, so
+    # this has to be enforced continuously, not only once.
+    found=0
+    for id in $(browser_windows); do
+      fit_to_screen "$id"
       found=1
       break
     done
